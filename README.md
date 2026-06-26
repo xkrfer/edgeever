@@ -4,7 +4,15 @@
 >
 > **EdgeEver：基于 Cloudflare 全家桶自托管的开源『印象笔记』。**
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/msh01/edgeever)
+<p align="center">
+  <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/msh01/edgeever">
+    <img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" />
+  </a>
+</p>
+
+<p align="center">
+  点击上方按钮进入 Cloudflare 部署向导；确认后会自动创建并绑定 D1/R2 资源，构建并部署 EdgeEver。
+</p>
 
 EdgeEver 是一个完全开源、支持自部署、面向人类和 AI Agent 的现代笔记工作区。
 
@@ -119,7 +127,7 @@ content_text      全文搜索、摘要、embedding 使用的纯文本
 
 ## Cloudflare 初始化
 
-公开仓库可以直接通过上方 **Deploy to Cloudflare** 按钮部署。Cloudflare 会读取 `wrangler.toml`，并在部署流程里为 D1/R2 等绑定创建或配置所需资源。
+公开仓库可以直接通过上方 **Deploy to Cloudflare** 按钮进入部署向导。Cloudflare 会读取 `wrangler.toml`，为 D1/R2 等绑定创建或配置所需资源，并使用 `package.json` 中的 `deploy` 脚本执行 D1 migration 与 Worker 部署。你仍需要登录 Cloudflare 并确认仓库名、Worker 名和资源名。
 
 如果你更喜欢 CLI 部署，先创建本机环境文件：
 
