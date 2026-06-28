@@ -39,7 +39,6 @@ import {
   TagX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GitHubRepositoryLink } from "@/components/GitHubRepositoryLink";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   DropdownMenu,
@@ -208,7 +207,6 @@ const MobileHomeHeader = ({
       >
         <RefreshCw className={cn("h-4 w-4", isSyncingQueuedChanges && "animate-spin")} />
       </button>
-      <GitHubRepositoryLink className="flex h-7 w-7 justify-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70" iconClassName="h-4 w-4" />
     </div>
   </div>
 );
@@ -875,14 +873,11 @@ export const MemoListPane = ({
           </div>
         )}
 
-        <div className="mb-3 hidden min-w-0 items-start justify-between gap-3 lg:flex">
-          <div className="min-w-0">
-            <div className="truncate text-lg font-semibold leading-6 text-slate-950">{listTitle}</div>
-            <div className="mt-0.5 truncate text-xs text-slate-500">
-              {listContextLabel} · {listCountLabel}
-            </div>
+        <div className="mb-3 hidden min-w-0 lg:block">
+          <div className="truncate text-lg font-semibold leading-6 text-slate-950">{listTitle}</div>
+          <div className="mt-0.5 truncate text-xs text-slate-500">
+            {listContextLabel} · {listCountLabel}
           </div>
-          <GitHubRepositoryLink className="flex h-8 w-8 shrink-0 justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70" />
         </div>
 
         <div className="mb-3 hidden items-center justify-between gap-2 lg:flex">
