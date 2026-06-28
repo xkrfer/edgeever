@@ -108,7 +108,7 @@ export const EditorToolbar = ({ editor, readOnly }: { editor: Editor | null; rea
           disabled={disabled}
           onValueChange={(value) => setBlock(value)}
         >
-          <SelectTrigger className="h-8 w-28 text-xs text-slate-800 border-slate-200 bg-white">
+          <SelectTrigger className="h-8 w-20 shrink-0 whitespace-nowrap border-slate-200 bg-white text-xs text-slate-800 [&>span]:truncate [&>span]:whitespace-nowrap">
             <SelectValue placeholder="正文" />
           </SelectTrigger>
           <SelectContent className="bg-white border border-slate-200 rounded-md py-1 shadow-md">
