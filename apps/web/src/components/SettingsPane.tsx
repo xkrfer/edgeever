@@ -1,15 +1,19 @@
 import { ChevronLeft, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { ShortcutSettings } from "@/lib/app-helpers";
 import { AdvancedPlayCard } from "./settings/AdvancedPlayCard";
 import { EvernoteImportGuideCard } from "./settings/EvernoteImportGuideCard";
 import { McpConfigCard } from "./settings/McpConfigCard";
 import { PreferenceCard } from "./settings/PreferenceCard";
 import { SessionCard } from "./settings/SessionCard";
+import { ShortcutSettingsCard } from "./settings/ShortcutSettingsCard";
 
 interface SettingsPaneProps {
   onClose: () => void;
   imageCompressionEnabled: boolean;
   onImageCompressionChange: (enabled: boolean) => void;
+  shortcutSettings: ShortcutSettings;
+  onShortcutSettingsChange: (settings: ShortcutSettings) => void;
   onLogout: () => void;
   isLoggingOut: boolean;
   authRequired: boolean;
@@ -20,6 +24,8 @@ export const SettingsPane = ({
   onClose,
   imageCompressionEnabled,
   onImageCompressionChange,
+  shortcutSettings,
+  onShortcutSettingsChange,
   onLogout,
   isLoggingOut,
   authRequired,
@@ -53,6 +59,10 @@ export const SettingsPane = ({
         <PreferenceCard
           imageCompressionEnabled={imageCompressionEnabled}
           onImageCompressionChange={onImageCompressionChange}
+        />
+        <ShortcutSettingsCard
+          shortcutSettings={shortcutSettings}
+          onShortcutSettingsChange={onShortcutSettingsChange}
         />
         <AdvancedPlayCard />
         <EvernoteImportGuideCard onShowGuide={onShowGuide} />

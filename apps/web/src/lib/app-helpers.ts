@@ -10,6 +10,14 @@ export type MemoFilterMode = "all" | "tagged" | "untagged" | "pinned";
 export type MemoSortMode = "updated-desc" | "created-desc" | "title-asc";
 export type NotebookSortMode = "name-asc" | "memo-count-desc" | "updated-desc";
 export type MemoListDensity = "preview" | "compact";
+export type ShortcutAction = "createMemo" | "createNotebook" | "focusSearch" | "focusReplace";
+export type ShortcutBinding = {
+  key: string;
+  ctrlOrMeta: boolean;
+  shift: boolean;
+  alt: boolean;
+};
+export type ShortcutSettings = Record<ShortcutAction, ShortcutBinding>;
 export type MobileBottomNavItem = "home" | "search" | "templates" | "settings";
 export type MemoContextMenuState = { memo: MemoSummary; x: number; y: number };
 export type MemoSelectionContextMenuState = { x: number; y: number };
@@ -144,6 +152,7 @@ export const IMAGE_COMPRESSION_STORAGE_KEY = "edgeever.imageCompressionEnabled";
 export const MEMO_LIST_DENSITY_STORAGE_KEY = "edgeever.memoListDensity";
 export const MEMO_LIST_WIDTH_STORAGE_KEY = "edgeever.memoListWidth";
 export const NOTEBOOK_SORT_STORAGE_KEY = "edgeever.notebookSort";
+export const SHORTCUT_SETTINGS_STORAGE_KEY = "edgeever.shortcutSettings";
 export const DEFAULT_MEMO_LIST_WIDTH_PX = 360;
 export const MIN_MEMO_LIST_WIDTH_PX = 300;
 export const MAX_MEMO_LIST_WIDTH_PX = 540;
@@ -169,6 +178,22 @@ export const MEMO_FILTER_OPTIONS: Array<{ value: MemoFilterMode; label: string }
   { value: "tagged", label: "有标签" },
   { value: "untagged", label: "无标签" },
 ];
+
+export const SHORTCUT_ACTION_OPTIONS: Array<{ value: ShortcutAction; label: string; description: string }> = [
+  { value: "createMemo", label: "新建笔记", description: "在当前笔记本中创建一条新笔记。" },
+  { value: "createNotebook", label: "新建笔记本", description: "在当前层级创建一个新笔记本。" },
+  { value: "focusSearch", label: "搜索笔记", description: "打开搜索或聚焦笔记内搜索。" },
+  { value: "focusReplace", label: "替换文本", description: "在当前笔记中打开替换。" },
+];
+
+export const DEFAULT_SHORTCUT_SETTINGS: ShortcutSettings = {
+  createMemo: { key: "n", ctrlOrMeta: true, shift: false, alt: false },
+  createNotebook: { key: "n", ctrlOrMeta: true, shift: true, alt: false },
+  focusSearch: { key: "f", ctrlOrMeta: true, shift: false, alt: false },
+  focusReplace: { key: "h", ctrlOrMeta: true, shift: false, alt: false },
+};
+
+const SHORTCUT_ACTION_VALUES = SHORTCUT_ACTION_OPTIONS.map((option) => option.value);
 
 export const getMemoTitle = (title: string | null | undefined) => title?.trim() || DEFAULT_MEMO_TITLE;
 
@@ -261,6 +286,103 @@ export const writeNotebookSortPreference = (sortMode: NotebookSortMode) => {
   } catch {
     // Local storage can be unavailable in private or restricted browser contexts.
   }
+};
+
+export const normalizeShortcutKey = (key: string) => {
+  if (key === " ") {
+    return "space";
+  }
+
+  return key.toLowerCase();
+};
+
+const isShortcutBinding = (value: unknown): value is ShortcutBinding => {
+  const binding = value as ShortcutBinding;
+  return (
+    Boolean(binding) &&
+    typeof binding.key === "string" &&
+    binding.key.trim().length > 0 &&
+    typeof binding.ctrlOrMeta === "boolean" &&
+    typeof binding.shift === "boolean" &&
+    typeof binding.alt === "boolean"
+  );
+};
+
+export const readShortcutSettingsPreference = (): ShortcutSettings => {
+  try {
+    const rawValue = window.localStorage.getItem(SHORTCUT_SETTINGS_STORAGE_KEY);
+    if (!rawValue) {
+      return DEFAULT_SHORTCUT_SETTINGS;
+    }
+
+    const parsedValue = JSON.parse(rawValue) as Partial<ShortcutSettings>;
+    return SHORTCUT_ACTION_VALUES.reduce<ShortcutSettings>(
+      (settings, action) => ({
+        ...settings,
+        [action]: isShortcutBinding(parsedValue[action])
+          ? { ...parsedValue[action], key: normalizeShortcutKey(parsedValue[action].key) }
+          : DEFAULT_SHORTCUT_SETTINGS[action],
+      }),
+      { ...DEFAULT_SHORTCUT_SETTINGS }
+    );
+  } catch {
+    return DEFAULT_SHORTCUT_SETTINGS;
+  }
+};
+
+export const writeShortcutSettingsPreference = (settings: ShortcutSettings) => {
+  try {
+    window.localStorage.setItem(SHORTCUT_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // Local storage can be unavailable in private or restricted browser contexts.
+  }
+};
+
+export const formatShortcutBinding = (binding: ShortcutBinding) => {
+  const isMac = /mac|iphone|ipad|ipod/i.test(window.navigator.platform);
+  const parts = [
+    binding.ctrlOrMeta ? (isMac ? "⌘" : "Ctrl") : null,
+    binding.alt ? (isMac ? "⌥" : "Alt") : null,
+    binding.shift ? (isMac ? "⇧" : "Shift") : null,
+    binding.key === "space" ? "Space" : binding.key.length === 1 ? binding.key.toUpperCase() : binding.key,
+  ].filter(Boolean);
+
+  return parts.join(isMac ? "" : " + ");
+};
+
+export const shortcutBindingFromKeyboardEvent = (event: KeyboardEvent): ShortcutBinding | null => {
+  const key = normalizeShortcutKey(event.key);
+
+  if (["control", "meta", "shift", "alt", "escape"].includes(key)) {
+    return null;
+  }
+
+  if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+    return null;
+  }
+
+  return {
+    key,
+    ctrlOrMeta: event.ctrlKey || event.metaKey,
+    shift: event.shiftKey,
+    alt: event.altKey,
+  };
+};
+
+export const shortcutBindingsEqual = (first: ShortcutBinding, second: ShortcutBinding) =>
+  first.key === second.key &&
+  first.ctrlOrMeta === second.ctrlOrMeta &&
+  first.shift === second.shift &&
+  first.alt === second.alt;
+
+export const getShortcutActionForEvent = (event: KeyboardEvent, settings: ShortcutSettings): ShortcutAction | null => {
+  const eventBinding = shortcutBindingFromKeyboardEvent(event);
+
+  if (!eventBinding) {
+    return null;
+  }
+
+  return SHORTCUT_ACTION_VALUES.find((action) => shortcutBindingsEqual(settings[action], eventBinding)) ?? null;
 };
 
 export const compareDateDesc = (first: string, second: string) => {

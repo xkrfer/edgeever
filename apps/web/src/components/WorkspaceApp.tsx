@@ -39,6 +39,7 @@ import type {
   NotebookDropPosition,
   NotebookMoveOption,
   MemoTemplate,
+  ShortcutSettings,
 } from "@/lib/app-helpers";
 import {
   DEFAULT_MEMO_TITLE,
@@ -48,6 +49,9 @@ import {
   isTextEntryTarget,
   readImageCompressionPreference,
   writeImageCompressionPreference,
+  readShortcutSettingsPreference,
+  writeShortcutSettingsPreference,
+  getShortcutActionForEvent,
   readMemoListWidthPreference,
   writeMemoListWidthPreference,
   clampMemoListWidth,
@@ -504,6 +508,7 @@ export const WorkspaceApp = ({
   const [appNoticeDialog, setAppNoticeDialog] = useState<AppNoticeDialogState | null>(null);
   const [multiSelectKeyDown, setMultiSelectKeyDown] = useState(false);
   const [imageCompressionEnabled, setImageCompressionEnabled] = useState(readImageCompressionPreference);
+  const [shortcutSettings, setShortcutSettings] = useState<ShortcutSettings>(readShortcutSettingsPreference);
   const [rightView, setRightView] = useState<"editor" | "settings" | "assets" | "evernote-migration">(() =>
     isInitialSettingsRoute ? "settings" : "editor"
   );
@@ -693,6 +698,10 @@ export const WorkspaceApp = ({
   useEffect(() => {
     writeImageCompressionPreference(imageCompressionEnabled);
   }, [imageCompressionEnabled]);
+
+  useEffect(() => {
+    writeShortcutSettingsPreference(shortcutSettings);
+  }, [shortcutSettings]);
 
   useEffect(() => {
     if (location.pathname === SETTINGS_PATH) {
@@ -1700,19 +1709,19 @@ export const WorkspaceApp = ({
 
   useEffect(() => {
     const handleWorkspaceShortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || (!event.ctrlKey && !event.metaKey)) {
+      if (event.defaultPrevented) {
         return;
       }
 
-      const key = event.key.toLowerCase();
-      if (key !== "f" && key !== "h" && key !== "n") {
+      const action = getShortcutActionForEvent(event, shortcutSettings);
+      if (!action) {
         return;
       }
 
       const targetElement = event.target instanceof Element ? event.target : null;
       const isEditorTextTarget = Boolean(targetElement?.closest(".ProseMirror"));
 
-      if ((key === "f" || key === "h") && isTextEntryTarget(event.target) && !isEditorTextTarget) {
+      if ((action === "focusSearch" || action === "focusReplace") && isTextEntryTarget(event.target) && !isEditorTextTarget) {
         return;
       }
 
@@ -1732,7 +1741,7 @@ export const WorkspaceApp = ({
         return;
       }
 
-      if (key === "f") {
+      if (action === "focusSearch") {
         event.preventDefault();
         if (event.shiftKey || !selectedMemoId || !isDesktopViewport()) {
           if (event.shiftKey) {
@@ -1747,7 +1756,7 @@ export const WorkspaceApp = ({
         return;
       }
 
-      if (key === "h") {
+      if (action === "focusReplace") {
         if (!selectedMemoId || memoView === "trash" || !isDesktopViewport()) {
           return;
         }
@@ -1759,14 +1768,14 @@ export const WorkspaceApp = ({
 
       event.preventDefault();
 
-      if (event.shiftKey) {
+      if (action === "createNotebook") {
         if (!createNotebookMutation.isPending) {
           handleCreateNotebook(null);
         }
         return;
       }
 
-      if (canCreateMemo && !createMemoMutation.isPending) {
+      if (action === "createMemo" && canCreateMemo && !createMemoMutation.isPending) {
         handleCreateMemo();
       }
     };
@@ -1783,6 +1792,7 @@ export const WorkspaceApp = ({
     handleCreateNotebook,
     handleCreateMemo,
     handleMobileSearch,
+    shortcutSettings,
     emptyTrashConfirmationOpen,
     memoDeleteConfirmation,
     memoView,
@@ -2085,6 +2095,8 @@ export const WorkspaceApp = ({
                     onClose={handleCloseSettings}
                     imageCompressionEnabled={imageCompressionEnabled}
                     onImageCompressionChange={setImageCompressionEnabled}
+                    shortcutSettings={shortcutSettings}
+                    onShortcutSettingsChange={setShortcutSettings}
                     onLogout={onLogout}
                     isLoggingOut={isLoggingOut}
                     authRequired={authRequired}
