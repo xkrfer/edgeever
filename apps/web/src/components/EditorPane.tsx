@@ -1457,6 +1457,16 @@ export const EditorPane = ({
     ),
   ].join("\n");
 
+  const appendMobilePlainText = (nextText: string, eventName: string) => {
+    const currentText = getMobilePlainTextValue();
+    const nextValue = `${currentText}${currentText ? "\n" : ""}${nextText}`;
+    setMobilePlainText(nextValue);
+    setMobilePlainTextElementValue(mobileTextAreaRef.current, nextValue);
+    markMobilePlainTextDirty();
+    recordMobileImeDebugEvent(eventName);
+    window.requestAnimationFrame(() => focusMobileInputTarget());
+  };
+
   const handleMobilePromptInput = () => {
     const nextText = window.prompt("输入笔记内容");
     if (!nextText) {
@@ -1464,13 +1474,24 @@ export const EditorPane = ({
       return;
     }
 
-    const currentText = getMobilePlainTextValue();
-    const nextValue = `${currentText}${currentText ? "\n" : ""}${nextText}`;
-    setMobilePlainText(nextValue);
-    setMobilePlainTextElementValue(mobileTextAreaRef.current, nextValue);
-    markMobilePlainTextDirty();
-    recordMobileImeDebugEvent("prompt-input");
-    window.requestAnimationFrame(() => focusMobileInputTarget());
+    appendMobilePlainText(nextText, "prompt-input");
+  };
+
+  const handleMobileClipboardInput = async () => {
+    try {
+      const nextText = await navigator.clipboard?.readText();
+      if (!nextText?.trim()) {
+        recordMobileImeDebugEvent("clipboard-empty");
+        focusMobileInputTarget();
+        return;
+      }
+
+      appendMobilePlainText(nextText, "clipboard-input");
+    } catch {
+      recordMobileImeDebugEvent("clipboard-error");
+      window.alert("读取剪贴板失败。请确认浏览器允许剪贴板权限。");
+      focusMobileInputTarget();
+    }
   };
 
   const updateMemoNotebook = (notebookId: string, sourceMemo: MemoDetail = memoRef.current ?? memo) => {
@@ -1939,17 +1960,26 @@ export const EditorPane = ({
               spellCheck
               data-edgeever-mobile-editor="plain-textarea"
               aria-label="笔记正文"
-              className="block min-h-full w-full resize-none border-0 bg-white px-4 py-3 pr-28 text-base leading-7 text-slate-900 outline-none placeholder:text-slate-400 sm:px-7"
+              className="block min-h-full w-full resize-none border-0 bg-white px-4 py-3 pr-32 text-base leading-7 text-slate-900 outline-none placeholder:text-slate-400 sm:px-7"
               placeholder="开始记录..."
               style={{ WebkitUserSelect: "text", userSelect: "text", caretColor: "auto" }}
             />
-            <button
-              className="absolute right-3 top-3 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800 shadow-sm"
-              type="button"
-              onClick={handleMobilePromptInput}
-            >
-              系统输入
-            </button>
+            <div className="absolute right-3 top-3 flex gap-2">
+              <button
+                className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800 shadow-sm"
+                type="button"
+                onClick={() => void handleMobileClipboardInput()}
+              >
+                粘贴
+              </button>
+              <button
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm"
+                type="button"
+                onClick={handleMobilePromptInput}
+              >
+                输入
+              </button>
+            </div>
           </>
         ) : (
           <EditorContent editor={editor} />
@@ -1965,6 +1995,13 @@ export const EditorPane = ({
               onClick={() => setMobileImeDebugOpen((open) => !open)}
             >
               IME 诊断：{mobileImeDebugEditorFocused ? "正文已聚焦" : "正文未聚焦"} · len {getMobilePlainTextValue().length}
+            </button>
+            <button
+              className="rounded border border-amber-300 bg-white px-2 py-1 font-medium text-slate-700"
+              type="button"
+              onClick={() => void handleMobileClipboardInput()}
+            >
+              粘贴
             </button>
             <button
               className="rounded border border-amber-300 bg-white px-2 py-1 font-medium text-slate-700"
