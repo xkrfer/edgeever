@@ -501,7 +501,17 @@ export const EditorPane = ({
     if (memo?.id && memo.id === mobileDefaultEditMemoId) {
       setIsMobileEditing(true);
       let frame = 0;
+      let consumeTimer = 0;
       let cancelled = false;
+      const targetMemoId = memo.id;
+      const consumeDefaultEditRequest = () => {
+        window.clearTimeout(consumeTimer);
+        consumeTimer = window.setTimeout(() => {
+          if (!cancelled && memoRef.current?.id === targetMemoId) {
+            onMobileDefaultEditConsumed();
+          }
+        }, 600);
+      };
 
       const focusWhenReady = (attempt = 0) => {
         frame = window.requestAnimationFrame(() => {
@@ -514,7 +524,7 @@ export const EditorPane = ({
             if (textarea) {
               textarea.focus({ preventScroll: true });
               textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-              onMobileDefaultEditConsumed();
+              consumeDefaultEditRequest();
               return;
             }
           }
@@ -522,7 +532,7 @@ export const EditorPane = ({
           const currentEditor = editorRef.current;
           if (!isMobileViewport && isEditorReady(currentEditor)) {
             currentEditor.commands.focus("end");
-            onMobileDefaultEditConsumed();
+            consumeDefaultEditRequest();
             return;
           }
 
@@ -530,8 +540,6 @@ export const EditorPane = ({
             focusWhenReady(attempt + 1);
             return;
           }
-
-          onMobileDefaultEditConsumed();
         });
       };
 
@@ -540,6 +548,7 @@ export const EditorPane = ({
       return () => {
         cancelled = true;
         window.cancelAnimationFrame(frame);
+        window.clearTimeout(consumeTimer);
       };
     }
   }, [isMobileViewport, memo?.id, mobileDefaultEditMemoId, onMobileDefaultEditConsumed, readOnly]);
