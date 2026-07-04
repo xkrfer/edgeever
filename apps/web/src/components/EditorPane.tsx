@@ -520,6 +520,8 @@ export const EditorPane = ({
   const memoRef = useRef<MemoDetail | null>(memo);
   const editorRef = useRef<Editor | null>(null);
   const mobileTextAreaRef = useRef<HTMLDivElement | null>(null);
+  const mobileImeBridgeInputRef = useRef<HTMLInputElement | null>(null);
+  const mobileImeBridgeComposingRef = useRef(false);
   const mobileDraftTimerRef = useRef<number | null>(null);
   const mobileSaveTimerRef = useRef<number | null>(null);
   const mobileImeDebugEventIdRef = useRef(0);
@@ -532,6 +534,17 @@ export const EditorPane = ({
   const hasUnsavedChangesRef = useRef(false);
   const editingMemoIdRef = useRef<string | null>(memo?.id ?? null);
   const imageCompressionEnabledRef = useRef(imageCompressionEnabled);
+
+  const focusMobileInputTarget = useCallback(() => {
+    const bridgeInput = mobileImeBridgeInputRef.current;
+    if (bridgeInput) {
+      bridgeInput.focus({ preventScroll: true });
+      bridgeInput.setSelectionRange(bridgeInput.value.length, bridgeInput.value.length);
+      return;
+    }
+
+    focusMobilePlainTextElement(mobileTextAreaRef.current);
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_EDITOR_QUERY);
@@ -561,9 +574,8 @@ export const EditorPane = ({
           }
 
           if (isMobileViewport && !readOnly) {
-            const plainTextElement = mobileTextAreaRef.current;
-            if (plainTextElement) {
-              focusMobilePlainTextElement(plainTextElement);
+            if (mobileImeBridgeInputRef.current || mobileTextAreaRef.current) {
+              focusMobileInputTarget();
               return;
             }
           }
@@ -588,7 +600,7 @@ export const EditorPane = ({
         window.cancelAnimationFrame(frame);
       };
     }
-  }, [isMobileViewport, memo?.id, mobileDefaultEditMemoId, onMobileDefaultEditConsumed, readOnly]);
+  }, [focusMobileInputTarget, isMobileViewport, memo?.id, mobileDefaultEditMemoId, onMobileDefaultEditConsumed, readOnly]);
 
   const insertImageFiles = useCallback((files: File[]) => {
     const currentMemo = memoRef.current;
@@ -995,6 +1007,9 @@ export const EditorPane = ({
       setTagsText("");
       setMobilePlainText("");
       setMobilePlainTextElementValue(mobileTextAreaRef.current, "");
+      if (mobileImeBridgeInputRef.current) {
+        mobileImeBridgeInputRef.current.value = "";
+      }
       setSaveState("idle");
       if (isEditorReady(currentEditor)) {
         currentEditor.commands.clearContent();
@@ -1039,6 +1054,9 @@ export const EditorPane = ({
       setTagsText(nextTagsText);
       setMobilePlainText(nextMarkdown);
       setMobilePlainTextElementValue(mobileTextAreaRef.current, nextMarkdown);
+      if (mobileImeBridgeInputRef.current) {
+        mobileImeBridgeInputRef.current.value = "";
+      }
 
       if (isEditorReady(currentEditor)) {
         currentEditor.commands.setContent(nextContent);
@@ -1286,6 +1304,121 @@ export const EditorPane = ({
       return;
     }
 
+    const bridgeInput = mobileImeBridgeInputRef.current;
+    if (!bridgeInput) {
+      return;
+    }
+
+    const updateBodyText = (nextValue: string) => {
+      setMobilePlainText(nextValue);
+      setMobilePlainTextElementValue(mobileTextAreaRef.current, nextValue);
+      markMobilePlainTextDirtyRef.current();
+    };
+    const appendToBodyText = (value: string) => {
+      if (!value) {
+        return;
+      }
+
+      updateBodyText(`${getMobilePlainTextElementValue(mobileTextAreaRef.current)}${value}`);
+    };
+    const deleteLastBodyCharacter = () => {
+      const currentValue = getMobilePlainTextElementValue(mobileTextAreaRef.current);
+      if (!currentValue) {
+        return;
+      }
+
+      updateBodyText(Array.from(currentValue).slice(0, -1).join(""));
+    };
+    const commitBridgeInputValue = () => {
+      const value = bridgeInput.value;
+      if (!value) {
+        return;
+      }
+
+      appendToBodyText(value);
+      bridgeInput.value = "";
+    };
+    const recordBridgeEvent = (event: Event) => {
+      mobileImeDebugRecorderRef.current(`bridge-${event.type}`, event);
+    };
+    const handleBridgeBeforeInput = (event: Event) => {
+      recordBridgeEvent(event);
+      const inputEvent = event as InputEvent;
+
+      if (inputEvent.inputType === "insertLineBreak") {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        appendToBodyText("\n");
+        bridgeInput.value = "";
+        return;
+      }
+
+      if (inputEvent.inputType === "deleteContentBackward" && !bridgeInput.value) {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        deleteLastBodyCharacter();
+      }
+    };
+    const handleBridgeInput = (event: Event) => {
+      recordBridgeEvent(event);
+      if (!mobileImeBridgeComposingRef.current) {
+        commitBridgeInputValue();
+      }
+    };
+    const handleBridgeCompositionStart = (event: Event) => {
+      mobileImeBridgeComposingRef.current = true;
+      recordBridgeEvent(event);
+    };
+    const handleBridgeCompositionEnd = (event: Event) => {
+      mobileImeBridgeComposingRef.current = false;
+      recordBridgeEvent(event);
+      commitBridgeInputValue();
+    };
+    const handleBridgeKeyDown = (event: Event) => {
+      recordBridgeEvent(event);
+      const keyboardEvent = event as KeyboardEvent;
+
+      if (keyboardEvent.key === "Enter") {
+        event.preventDefault();
+        appendToBodyText("\n");
+        bridgeInput.value = "";
+        return;
+      }
+
+      if (keyboardEvent.key === "Backspace" && !bridgeInput.value) {
+        deleteLastBodyCharacter();
+      }
+    };
+
+    bridgeInput.addEventListener("focus", recordBridgeEvent);
+    bridgeInput.addEventListener("blur", recordBridgeEvent);
+    bridgeInput.addEventListener("click", recordBridgeEvent);
+    bridgeInput.addEventListener("beforeinput", handleBridgeBeforeInput);
+    bridgeInput.addEventListener("input", handleBridgeInput);
+    bridgeInput.addEventListener("compositionstart", handleBridgeCompositionStart);
+    bridgeInput.addEventListener("compositionend", handleBridgeCompositionEnd);
+    bridgeInput.addEventListener("keydown", handleBridgeKeyDown);
+    mobileImeDebugRecorderRef.current("bridge-listeners-ready");
+
+    return () => {
+      bridgeInput.removeEventListener("focus", recordBridgeEvent);
+      bridgeInput.removeEventListener("blur", recordBridgeEvent);
+      bridgeInput.removeEventListener("click", recordBridgeEvent);
+      bridgeInput.removeEventListener("beforeinput", handleBridgeBeforeInput);
+      bridgeInput.removeEventListener("input", handleBridgeInput);
+      bridgeInput.removeEventListener("compositionstart", handleBridgeCompositionStart);
+      bridgeInput.removeEventListener("compositionend", handleBridgeCompositionEnd);
+      bridgeInput.removeEventListener("keydown", handleBridgeKeyDown);
+    };
+  }, [useMobilePlainTextEditor]);
+
+  useEffect(() => {
+    if (!useMobilePlainTextEditor) {
+      return;
+    }
+
     const plainTextElement = mobileTextAreaRef.current;
     if (!plainTextElement) {
       return;
@@ -1433,7 +1566,8 @@ export const EditorPane = ({
     ? `${noteSearchMatches.length > 0 ? noteSearchIndex + 1 : 0}/${noteSearchMatches.length}`
     : "0/0";
   const mobileImeDebugEditorFocused =
-    typeof document !== "undefined" && mobileTextAreaRef.current === document.activeElement;
+    typeof document !== "undefined" &&
+    (mobileTextAreaRef.current === document.activeElement || mobileImeBridgeInputRef.current === document.activeElement);
   const mobileImeDebugLogText = [
     `memoId=${memo.id}`,
     `mobile=${isMobileViewport}`,
@@ -1443,6 +1577,7 @@ export const EditorPane = ({
     `editorFocused=${mobileImeDebugEditorFocused}`,
     `activeElement=${mobileImeDebugActiveElement}`,
     `valueLength=${getMobilePlainTextValue().length}`,
+    `bridgeValueLength=${mobileImeBridgeInputRef.current?.value.length ?? 0}`,
     `saveState=${saveState}`,
     ...mobileImeDebugEvents.map((entry) =>
       `${entry.time} ${entry.event} active=${entry.activeElement} len=${entry.valueLength}` +
@@ -1903,21 +2038,35 @@ export const EditorPane = ({
 
       <div className="edgeever-editor min-h-0 flex-1 overflow-y-auto bg-white">
         {useMobilePlainTextEditor ? (
-          <div
-            ref={mobileTextAreaRef}
-            contentEditable
-            suppressContentEditableWarning
-            role="textbox"
-            tabIndex={0}
-            aria-label="笔记正文"
-            aria-multiline="true"
-            enterKeyHint="enter"
-            inputMode="text"
-            spellCheck
-            data-edgeever-mobile-editor="plain-contenteditable"
-            className="block min-h-full w-full whitespace-pre-wrap break-words border-0 bg-white px-4 py-3 text-base leading-7 text-slate-900 outline-none sm:px-7"
-            style={{ WebkitUserSelect: "text", userSelect: "text", caretColor: "auto" }}
-          />
+          <div className="flex min-h-full w-full flex-col bg-white">
+            <input
+              ref={mobileImeBridgeInputRef}
+              type="text"
+              autoCapitalize="sentences"
+              autoComplete="off"
+              autoCorrect="on"
+              enterKeyHint="enter"
+              inputMode="text"
+              spellCheck
+              data-edgeever-mobile-ime-bridge="true"
+              aria-label="笔记正文输入"
+              className="block w-full border-0 bg-white px-4 py-3 text-base leading-7 text-slate-900 outline-none placeholder:text-slate-400 sm:px-7"
+              placeholder={mobilePlainText ? "继续输入..." : "开始记录..."}
+            />
+            <div
+              ref={mobileTextAreaRef}
+              role="textbox"
+              tabIndex={-1}
+              aria-label="笔记正文"
+              aria-multiline="true"
+              data-edgeever-mobile-editor="plain-content-display"
+              className="block min-h-[12rem] flex-1 whitespace-pre-wrap break-words bg-white px-4 pb-6 pt-1 text-base leading-7 text-slate-900 outline-none sm:px-7"
+              style={{ WebkitUserSelect: "text", userSelect: "text", caretColor: "auto" }}
+              onClick={focusMobileInputTarget}
+            >
+              {mobilePlainText}
+            </div>
+          </div>
         ) : (
           <EditorContent editor={editor} />
         )}
@@ -1937,7 +2086,7 @@ export const EditorPane = ({
               className="rounded border border-amber-300 bg-white px-2 py-1 font-medium text-slate-700"
               type="button"
               onClick={() => {
-                focusMobilePlainTextElement(mobileTextAreaRef.current);
+                focusMobileInputTarget();
                 recordMobileImeDebugEvent("debug-focus-button");
               }}
             >
@@ -1988,7 +2137,7 @@ export const EditorPane = ({
           aria-label="编辑笔记"
           onClick={() => {
             setIsMobileEditing(true);
-            window.requestAnimationFrame(() => focusMobilePlainTextElement(mobileTextAreaRef.current));
+            window.requestAnimationFrame(() => focusMobileInputTarget());
           }}
         >
           <Pencil className="h-5 w-5" />
