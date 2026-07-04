@@ -1302,6 +1302,7 @@ export const EditorPane = ({
     plainTextElement.addEventListener("focus", recordNativeEvent);
     plainTextElement.addEventListener("blur", recordNativeEvent);
     plainTextElement.addEventListener("click", recordNativeEvent);
+    plainTextElement.addEventListener("beforeinput", recordNativeEvent);
     plainTextElement.addEventListener("compositionstart", recordNativeEvent);
     plainTextElement.addEventListener("compositionupdate", recordNativeEvent);
     plainTextElement.addEventListener("compositionend", recordNativeEvent);
@@ -1312,6 +1313,7 @@ export const EditorPane = ({
       plainTextElement.removeEventListener("focus", recordNativeEvent);
       plainTextElement.removeEventListener("blur", recordNativeEvent);
       plainTextElement.removeEventListener("click", recordNativeEvent);
+      plainTextElement.removeEventListener("beforeinput", recordNativeEvent);
       plainTextElement.removeEventListener("compositionstart", recordNativeEvent);
       plainTextElement.removeEventListener("compositionupdate", recordNativeEvent);
       plainTextElement.removeEventListener("compositionend", recordNativeEvent);
@@ -1903,7 +1905,7 @@ export const EditorPane = ({
         {useMobilePlainTextEditor ? (
           <div
             ref={mobileTextAreaRef}
-            contentEditable="plaintext-only"
+            contentEditable
             suppressContentEditableWarning
             role="textbox"
             tabIndex={0}
@@ -1913,8 +1915,7 @@ export const EditorPane = ({
             inputMode="text"
             spellCheck
             data-edgeever-mobile-editor="plain-contenteditable"
-            data-placeholder="开始记录..."
-            className="block min-h-full w-full whitespace-pre-wrap break-words border-0 bg-white px-4 py-3 text-base leading-7 text-slate-900 outline-none empty:before:pointer-events-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] sm:px-7"
+            className="block min-h-full w-full whitespace-pre-wrap break-words border-0 bg-white px-4 py-3 text-base leading-7 text-slate-900 outline-none sm:px-7"
             style={{ WebkitUserSelect: "text", userSelect: "text", caretColor: "auto" }}
           />
         ) : (
