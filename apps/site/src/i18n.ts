@@ -1,6 +1,8 @@
 export type SiteLocale = "zh-CN" | "en-US";
 
 export const defaultSiteLocale: SiteLocale = "zh-CN";
+export const siteLocaleStorageKey = "edgeever.site.locale";
+export const siteLocaleDataAttribute = "data-edgeever-site-locale";
 
 export const getSiteLocale = (pathname: string): SiteLocale => (pathname === "/en" || pathname.startsWith("/en/") ? "en-US" : "zh-CN");
 
