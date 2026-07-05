@@ -128,83 +128,83 @@ export const MemoSelectionActionBar = ({
   const { t } = useTranslation();
 
   return (
-  <div className="hidden h-full min-h-0 flex-1 items-center justify-start bg-white px-16 py-10 lg:flex xl:px-24">
-    <div className="w-72 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg">
-      <div className="flex h-9 items-center gap-2 px-3 text-xs font-semibold text-slate-400">
-        <CheckSquare className="h-4 w-4" />
-        {getSelectionCountLabel(selectedCount, t)}
-      </div>
-      {!isTrashView && moveNotebookOptions.length > 0 && (
-        <div className="border-t border-slate-100 px-3 py-2">
-          <div className="flex items-center gap-2">
-            <Select value={moveTargetNotebookId} disabled={isMoving} onValueChange={onMoveTargetChange}>
-              <SelectTrigger className="h-8 min-w-0 flex-1 text-xs text-slate-700 border-slate-200">
-                <SelectValue placeholder={t("memoList.chooseNotebook")} />
-              </SelectTrigger>
-              <SelectContent className="max-h-60 bg-white border border-slate-200 rounded-md py-1 shadow-md">
-                {moveNotebookOptions.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.selectLabel}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="sm"
-              variant="soft"
-              title={moveTitle}
-              onClick={onMove}
-              disabled={selectedCount === 0 || !moveTargetNotebookId || isMoving || isTrashView}
-            >
-              <Folder className="h-4 w-4" />
-              {t("memoList.move")}
-            </Button>
-          </div>
+    <div className="hidden h-full min-h-0 flex-1 items-center justify-center bg-white px-16 py-10 lg:flex xl:px-24">
+      <div className="w-72 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+        <div className="flex h-9 items-center gap-2 px-3 text-xs font-semibold text-slate-400">
+          <CheckSquare className="h-4 w-4" />
+          {getSelectionCountLabel(selectedCount, t)}
         </div>
-      )}
-      <Button
-        className="h-11 w-full justify-start rounded-none px-3 text-slate-700 hover:bg-slate-50"
-        variant="ghost"
-        title={pinTitle}
-        onClick={onPin}
-        disabled={selectedCount === 0 || isPinning || isTrashView}
-      >
-        <Star className={cn("h-4 w-4", !pinTarget && "fill-current text-slate-700")} />
-        {pinLabel}
-      </Button>
-      <Button
-        className="h-11 w-full justify-start rounded-none px-3 text-slate-700 hover:bg-slate-50"
-        variant="ghost"
-        title={mergeTitle}
-        onClick={onMerge}
-        disabled={selectedCount < 2 || isMerging || isTrashView}
-      >
-        <Merge className="h-4 w-4" />
-        {t("memoList.mergeMemos")}
-      </Button>
-      <div className="h-px bg-slate-100" />
-      <Button
-        className="h-11 w-full justify-start rounded-none px-3 text-rose-700 hover:bg-rose-50 hover:text-rose-700"
-        variant="ghost"
-        title={deleteTitle}
-        onClick={onDelete}
-        disabled={selectedCount === 0 || isDeleting}
-      >
-        <Trash2 className="h-4 w-4" />
-        {isTrashView ? t("memoList.permanentDelete") : t("common.delete")}
-      </Button>
-      <div className="h-px bg-slate-100" />
-      <Button
-        className="h-11 w-full justify-start rounded-none px-3 text-slate-700 hover:bg-slate-50"
-        variant="ghost"
-        title={t("memoList.clearSelection")}
-        onClick={onClearSelection}
-      >
-        <X className="h-4 w-4" />
-        {t("memoList.clearSelection")}
-      </Button>
+        {!isTrashView && moveNotebookOptions.length > 0 && (
+          <div className="border-t border-slate-100 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Select value={moveTargetNotebookId} disabled={isMoving} onValueChange={onMoveTargetChange}>
+                <SelectTrigger className="h-8 min-w-0 flex-1 text-xs text-slate-700 border-slate-200">
+                  <SelectValue placeholder={t("memoList.chooseNotebook")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60 bg-white border border-slate-200 rounded-md py-1 shadow-md">
+                  {moveNotebookOptions.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.selectLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="soft"
+                title={moveTitle}
+                onClick={onMove}
+                disabled={selectedCount === 0 || !moveTargetNotebookId || isMoving || isTrashView}
+              >
+                <Folder className="h-4 w-4" />
+                {t("memoList.move")}
+              </Button>
+            </div>
+          </div>
+        )}
+        <Button
+          className="h-11 w-full justify-start rounded-none px-3 text-slate-700 hover:bg-slate-50"
+          variant="ghost"
+          title={pinTitle}
+          onClick={onPin}
+          disabled={selectedCount === 0 || isPinning || isTrashView}
+        >
+          <Star className={cn("h-4 w-4", !pinTarget && "fill-current text-slate-700")} />
+          {pinLabel}
+        </Button>
+        <Button
+          className="h-11 w-full justify-start rounded-none px-3 text-slate-700 hover:bg-slate-50"
+          variant="ghost"
+          title={mergeTitle}
+          onClick={onMerge}
+          disabled={selectedCount < 2 || isMerging || isTrashView}
+        >
+          <Merge className="h-4 w-4" />
+          {t("memoList.mergeMemos")}
+        </Button>
+        <div className="h-px bg-slate-100" />
+        <Button
+          className="h-11 w-full justify-start rounded-none px-3 text-rose-700 hover:bg-rose-50 hover:text-rose-700"
+          variant="ghost"
+          title={deleteTitle}
+          onClick={onDelete}
+          disabled={selectedCount === 0 || isDeleting}
+        >
+          <Trash2 className="h-4 w-4" />
+          {isTrashView ? t("memoList.permanentDelete") : t("common.delete")}
+        </Button>
+        <div className="h-px bg-slate-100" />
+        <Button
+          className="h-11 w-full justify-start rounded-none px-3 text-slate-700 hover:bg-slate-50"
+          variant="ghost"
+          title={t("memoList.clearSelection")}
+          onClick={onClearSelection}
+        >
+          <X className="h-4 w-4" />
+          {t("memoList.clearSelection")}
+        </Button>
+      </div>
     </div>
-  </div>
   );
 };
 
