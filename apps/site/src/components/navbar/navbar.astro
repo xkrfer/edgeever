@@ -1,8 +1,8 @@
 ---
 import Container from "@/components/container.astro";
-import Link from "@/components/ui/link.astro";
 import Dropdown from "./dropdown.astro";
 import LanguageSwitcher from "./language-switcher.astro";
+import { Icon } from "astro-icon/components";
 import { Astronav, MenuItems, MenuIcon } from "astro-navbar";
 import { getLocalizedPath, getSiteLocale, siteCopy } from "@/i18n";
 
@@ -14,21 +14,16 @@ const menuitems = [
     path: `${getLocalizedPath(locale, "/")}#features`,
   },
   {
-    title: copy.guides,
-    children: [
-      {
-        title: copy.deploy,
-        path: getLocalizedPath(locale, "/blog/ai-agent-deploy-cloudflare"),
-      },
-      {
-        title: copy.migration,
-        path: getLocalizedPath(locale, "/guides/evernote-migration"),
-      },
-      {
-        title: copy.advancedPlay,
-        path: getLocalizedPath(locale, "/guides/advanced-play"),
-      },
-    ],
+    title: copy.deploy,
+    path: getLocalizedPath(locale, "/blog/ai-agent-deploy-cloudflare"),
+  },
+  {
+    title: copy.migration,
+    path: getLocalizedPath(locale, "/guides/evernote-migration"),
+  },
+  {
+    title: copy.advancedPlay,
+    path: getLocalizedPath(locale, "/guides/advanced-play"),
   },
   {
     title: copy.blog,
@@ -94,17 +89,31 @@ const menuitems = [
           }
         </ul>
         <div class="lg:hidden flex items-center mt-3 gap-4">
-        <Link href="https://demo.edgeever.org" target="_blank" style="muted" block size="md">{copy.demo}</Link>
-          <Link href="https://github.com/tianma-if/edgeever" target="_blank" size="md" block>GitHub</Link>
+          <a
+            href="https://github.com/tianma-if/edgeever"
+            target="_blank"
+            rel="noopener"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-gray-600 transition hover:border-slate-300 hover:text-gray-900"
+            aria-label="GitHub"
+          >
+            <Icon class="h-5 w-5" name="bx:bxl-github" />
+          </a>
           <LanguageSwitcher pathname={Astro.url.pathname} compact />
         </div>
       </MenuItems>
     </Astronav>
     <div>
       <div class="hidden lg:flex items-center gap-4">
-        <a href="https://demo.edgeever.org" target="_blank" class="text-gray-600 hover:text-gray-900 transition">{copy.demo}</a>
         <LanguageSwitcher pathname={Astro.url.pathname} />
-        <Link href="https://github.com/tianma-if/edgeever" target="_blank" size="md">GitHub</Link>
+        <a
+          href="https://github.com/tianma-if/edgeever"
+          target="_blank"
+          rel="noopener"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-gray-600 transition hover:border-slate-300 hover:text-gray-900"
+          aria-label="GitHub"
+        >
+          <Icon class="h-5 w-5" name="bx:bxl-github" />
+        </a>
       </div>
     </div>
   </header>
