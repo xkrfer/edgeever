@@ -78,11 +78,14 @@ import {
 } from "../lib/preferences";
 import { useSession } from "../lib/session";
 import {
+  deleteMobileSyncQueueItem,
   emptyMobileSyncQueueSummary,
+  listMobileSyncQueueItems,
   loadMobileSyncQueueSummary,
   queueMobileMemoUpdate,
   shouldQueueMobileMemoSaveError,
   syncMobileQueuedChanges,
+  type MobileSyncQueueItem,
   type MobileSyncQueueSummary,
 } from "../lib/sync-queue";
 
@@ -203,6 +206,7 @@ export const WorkspaceScreen = () => {
   const [evernoteGuideOpen, setEvernoteGuideOpen] = useState(false);
   const [advancedPlayOpen, setAdvancedPlayOpen] = useState(false);
   const [systemInfoOpen, setSystemInfoOpen] = useState(false);
+  const [syncQueueOpen, setSyncQueueOpen] = useState(false);
   const [revisionMemo, setRevisionMemo] = useState<MemoDetail | null>(null);
   const [selectedMemoIds, setSelectedMemoIds] = useState<Set<string>>(() => new Set());
   const [selectionMoveOpen, setSelectionMoveOpen] = useState(false);
@@ -729,6 +733,7 @@ export const WorkspaceScreen = () => {
           onOpenSystemInfo={() => setSystemInfoOpen(true)}
           onOpenTagsManager={() => setTagsManagerOpen(true)}
           onOpenTemplates={() => setTemplatesOpen(true)}
+          onOpenSyncQueue={() => setSyncQueueOpen(true)}
           onSyncQueuedChanges={handleSyncQueuedChanges}
           syncQueueMessage={syncQueueMessage}
           syncQueueSummary={syncQueueSummary}
@@ -783,6 +788,12 @@ export const WorkspaceScreen = () => {
       <ApiTokensModal baseUrl={session?.baseUrl ?? ""} onClose={() => setApiTokensOpen(false)} visible={apiTokensOpen} />
       <EvernoteGuideModal onClose={() => setEvernoteGuideOpen(false)} visible={evernoteGuideOpen} />
       <AdvancedPlayModal onClose={() => setAdvancedPlayOpen(false)} visible={advancedPlayOpen} />
+      <SyncQueueModal
+        onClose={() => setSyncQueueOpen(false)}
+        onChanged={async () => setSyncQueueSummary(await loadMobileSyncQueueSummary())}
+        onSync={handleSyncQueuedChanges}
+        visible={syncQueueOpen}
+      />
       <SystemInfoModal baseUrl={session?.baseUrl ?? ""} memoCount={memoCount} notebookCount={notebooks.length} onClose={() => setSystemInfoOpen(false)} visible={systemInfoOpen} />
       <RevisionHistoryModal
         memo={revisionMemo}
@@ -1126,6 +1137,7 @@ const SettingsView = ({
   onOpenNotebookManager,
   onOpenResources,
   onOpenSystemInfo,
+  onOpenSyncQueue,
   onOpenTagsManager,
   onOpenTemplates,
   onSyncQueuedChanges,
@@ -1143,6 +1155,7 @@ const SettingsView = ({
   onOpenNotebookManager: () => void;
   onOpenResources: () => void;
   onOpenSystemInfo: () => void;
+  onOpenSyncQueue: () => void;
   onOpenTagsManager: () => void;
   onOpenTemplates: () => void;
   onSyncQueuedChanges: () => void;
@@ -1188,7 +1201,7 @@ const SettingsView = ({
         <Switch onValueChange={onImageCompressionChange} value={imageCompressionEnabled} />
       </View>
     </View>
-    <SyncQueuePanel isSyncing={isSyncingQueue} message={syncQueueMessage} onSync={onSyncQueuedChanges} summary={syncQueueSummary} />
+    <SyncQueuePanel isSyncing={isSyncingQueue} message={syncQueueMessage} onOpen={onOpenSyncQueue} onSync={onSyncQueuedChanges} summary={syncQueueSummary} />
     <PanelRow label="富文本编辑器" value="待接入 WebView TipTap" />
   </ScrollView>
 );
@@ -2114,6 +2127,118 @@ const AdvancedPlayModal = ({ onClose, visible }: { onClose: () => void; visible:
               </Text>
             </View>
           ))}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+};
+
+const SyncQueueModal = ({
+  onChanged,
+  onClose,
+  onSync,
+  visible,
+}: {
+  onChanged: () => void | Promise<void>;
+  onClose: () => void;
+  onSync: () => void | Promise<void>;
+  visible: boolean;
+}) => {
+  const [items, setItems] = useState<MobileSyncQueueItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const refreshItems = async () => {
+    setLoading(true);
+    try {
+      setItems(await listMobileSyncQueueItems());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (visible) {
+      void refreshItems();
+    }
+  }, [visible]);
+
+  const discardItem = (item: MobileSyncQueueItem) => {
+    Alert.alert("丢弃本地变更？", "此操作会移除这条待同步记录，不会修改服务端笔记。", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "丢弃",
+        style: "destructive",
+        onPress: async () => {
+          await deleteMobileSyncQueueItem(item.id);
+          await onChanged();
+          await refreshItems();
+        },
+      },
+    ]);
+  };
+
+  const syncAll = async () => {
+    await onSync();
+    await onChanged();
+    await refreshItems();
+  };
+
+  return (
+    <Modal animationType="slide" onRequestClose={onClose} presentationStyle="pageSheet" visible={visible}>
+      <SafeAreaView style={styles.modalSafeArea}>
+        <View style={styles.modalHeader}>
+          <IconButton onPress={onClose}>
+            <X color="#0f172a" size={20} />
+          </IconButton>
+          <Text style={styles.modalTitle}>同步队列</Text>
+          <IconButton onPress={refreshItems}>
+            {loading ? <ActivityIndicator color="#0f172a" /> : <RefreshCw color="#0f172a" size={18} />}
+          </IconButton>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.editorForm}>
+          <View style={styles.guideHero}>
+            <RefreshCw color="#047857" size={24} />
+            <Text style={styles.panelValue}>本地待同步变更</Text>
+            <Text style={styles.panelLabel}>失败和冲突会保留在这里。冲突通常表示服务端版本已更新，需要确认后再处理。</Text>
+          </View>
+
+          <Pressable disabled={loading || items.length === 0} onPress={() => void syncAll()} style={[styles.uploadButton, (loading || items.length === 0) && styles.buttonDisabled]}>
+            <RefreshCw color="#ffffff" size={18} />
+            <Text style={styles.uploadButtonText}>立即同步全部</Text>
+          </Pressable>
+
+          {loading ? (
+            <View style={styles.centerInline}>
+              <ActivityIndicator color="#0f172a" />
+            </View>
+          ) : items.length === 0 ? (
+            <View style={styles.emptyInlinePanel}>
+              <ShieldCheck color="#94a3b8" size={28} />
+              <Text style={styles.mutedText}>暂无待同步变更</Text>
+            </View>
+          ) : (
+            items.map((item) => (
+              <View key={item.id} style={styles.syncQueueItem}>
+                <View style={styles.promptCardHeader}>
+                  <Text style={styles.panelValue}>{item.payload.title || DEFAULT_MEMO_TITLE}</Text>
+                  <Text style={[styles.syncStatusPill, getSyncQueueStatusStyle(item.status)]}>{getSyncQueueStatusLabel(item.status)}</Text>
+                </View>
+                <Text selectable style={styles.panelLabel}>
+                  {item.memoId}
+                </Text>
+                <Text style={styles.panelHint}>
+                  更新于 {formatDate(item.updatedAt)} · 尝试 {item.attemptCount} 次
+                </Text>
+                {item.lastError ? <Text style={styles.errorText}>{item.lastError}</Text> : null}
+                <View style={styles.tokenActionRow}>
+                  <ActionButton danger label="丢弃" onPress={() => discardItem(item)}>
+                    <Trash2 color="#b91c1c" size={16} />
+                  </ActionButton>
+                </View>
+              </View>
+            ))
+          )}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -3273,11 +3398,13 @@ const PanelRow = ({ label, value }: { label: string; value: string }) => (
 const SyncQueuePanel = ({
   isSyncing,
   message,
+  onOpen,
   onSync,
   summary,
 }: {
   isSyncing: boolean;
   message: string;
+  onOpen: () => void;
   onSync: () => void;
   summary: MobileSyncQueueSummary;
 }) => {
@@ -3289,10 +3416,16 @@ const SyncQueuePanel = ({
       <Text style={styles.panelLabel}>离线同步</Text>
       <Text style={styles.panelValue}>{value}</Text>
       {message ? <Text style={styles.panelHint}>{message}</Text> : null}
-      <Pressable disabled={isSyncing || !hasQueuedChanges} onPress={onSync} style={[styles.syncButton, (isSyncing || !hasQueuedChanges) && styles.buttonDisabled]}>
-        {isSyncing ? <ActivityIndicator color="#ffffff" /> : <RefreshCw color="#ffffff" size={16} />}
-        <Text style={styles.syncButtonText}>{isSyncing ? "同步中" : "立即同步"}</Text>
-      </Pressable>
+      <View style={styles.tokenActionRow}>
+        <Pressable disabled={isSyncing || !hasQueuedChanges} onPress={onSync} style={[styles.syncButton, (isSyncing || !hasQueuedChanges) && styles.buttonDisabled]}>
+          {isSyncing ? <ActivityIndicator color="#ffffff" /> : <RefreshCw color="#ffffff" size={16} />}
+          <Text style={styles.syncButtonText}>{isSyncing ? "同步中" : "立即同步"}</Text>
+        </Pressable>
+        <Pressable disabled={!hasQueuedChanges} onPress={onOpen} style={[styles.actionButton, !hasQueuedChanges && styles.buttonDisabled]}>
+          <List color="#0f172a" size={16} />
+          <Text style={styles.actionButtonText}>查看队列</Text>
+        </Pressable>
+      </View>
     </View>
   );
 };
@@ -3728,6 +3861,29 @@ const formatRevisionActor = (actor: string) => {
   }
 
   return actor || "system";
+};
+
+const getSyncQueueStatusLabel = (status: MobileSyncQueueItem["status"]) => {
+  const labels: Record<MobileSyncQueueItem["status"], string> = {
+    pending: "待同步",
+    syncing: "同步中",
+    conflict: "冲突",
+    error: "失败",
+  };
+
+  return labels[status];
+};
+
+const getSyncQueueStatusStyle = (status: MobileSyncQueueItem["status"]) => {
+  if (status === "conflict" || status === "error") {
+    return styles.syncStatusDanger;
+  }
+
+  if (status === "syncing") {
+    return styles.syncStatusActive;
+  }
+
+  return styles.syncStatusPending;
 };
 
 const styles = StyleSheet.create({
@@ -4420,6 +4576,34 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
     justifyContent: "space-between",
+  },
+  syncQueueItem: {
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
+  },
+  syncStatusPill: {
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: "800",
+    overflow: "hidden",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  syncStatusPending: {
+    backgroundColor: "#f1f5f9",
+    color: "#475569",
+  },
+  syncStatusActive: {
+    backgroundColor: "#eff6ff",
+    color: "#2563eb",
+  },
+  syncStatusDanger: {
+    backgroundColor: "#fef2f2",
+    color: "#b91c1c",
   },
   templateCard: {
     alignItems: "center",

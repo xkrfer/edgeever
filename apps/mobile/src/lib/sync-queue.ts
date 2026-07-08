@@ -75,6 +75,14 @@ export const queueMobileMemoUpdate = async (payload: MobileMemoUpdateSyncPayload
 
 export const loadMobileSyncQueueSummary = async () => summarizeMobileSyncQueue(await readMobileSyncQueue());
 
+export const listMobileSyncQueueItems = async () =>
+  (await readMobileSyncQueue()).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
+export const deleteMobileSyncQueueItem = async (id: string) => {
+  await removeMobileSyncQueueItem(id);
+  return loadMobileSyncQueueSummary();
+};
+
 export const syncMobileQueuedChanges = async (
   client: ReturnType<typeof createEdgeEverClient>,
   options: {
