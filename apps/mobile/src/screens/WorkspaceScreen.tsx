@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
@@ -226,6 +226,8 @@ type NotebookOption = {
 };
 type MobileNotebookSortMode = MobileNotebookSortPreference;
 type MobileLocaleMode = MobileLocalePreference;
+const MobileLocaleContext = createContext<MobileLocaleMode>("system");
+const useMobileLocalePreference = () => useContext(MobileLocaleContext);
 type TextSelection = {
   start: number;
   end: number;
@@ -827,8 +829,9 @@ export const WorkspaceScreen = () => {
   }, [client, lastAutoSyncAt]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <AppHeader instance={session?.baseUrl ?? ""} onRefresh={refresh} onSignOut={signOut} />
+    <MobileLocaleContext.Provider value={localePreference}>
+      <SafeAreaView style={styles.safeArea}>
+        <AppHeader instance={session?.baseUrl ?? ""} onRefresh={refresh} onSignOut={signOut} />
 
       {activeView === "notes" ? (
         <NotesView
@@ -1126,7 +1129,8 @@ export const WorkspaceScreen = () => {
           onPress={() => setActiveView("settings")}
         />
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </MobileLocaleContext.Provider>
   );
 };
 
@@ -2254,6 +2258,7 @@ const NotebookManagerModal = ({
 const TagsManagerModal = ({ onClose, visible }: { onClose: () => void; visible: boolean }) => {
   const { client } = useSession();
   const queryClient = useQueryClient();
+  const localePreference = useMobileLocalePreference();
   const [editingTagName, setEditingTagName] = useState<string | null>(null);
   const [editingTagValue, setEditingTagValue] = useState("");
 
@@ -2367,7 +2372,7 @@ const TagsManagerModal = ({ onClose, visible }: { onClose: () => void; visible: 
                       <Text numberOfLines={1} style={styles.panelValue}>
                         #{tag.name}
                       </Text>
-                      <Text style={styles.panelLabel}>{tag.memoCount} 条笔记 · {tag.updatedAt ? formatDate(tag.updatedAt) : "未更新"}</Text>
+                      <Text style={styles.panelLabel}>{tag.memoCount} 条笔记 · {tag.updatedAt ? formatDate(tag.updatedAt, localePreference) : "未更新"}</Text>
                     </View>
                   )}
 
@@ -2636,6 +2641,7 @@ const ApiTokenRow = ({
   const tokenCopyLabel = `token-${token.id}`;
   const configCopyLabel = `config-${token.id}`;
   const canCopyToken = Boolean(token.token && !token.isRevoked);
+  const localePreference = useMobileLocalePreference();
 
   return (
     <View style={[styles.apiTokenRow, token.isRevoked && styles.buttonDisabled]}>
@@ -2646,7 +2652,7 @@ const ApiTokenRow = ({
         <Text numberOfLines={2} style={styles.panelLabel}>
           {token.scopes.map(getTokenScopeLabel).join("、") || "无权限"}
         </Text>
-        <Text style={styles.panelLabel}>{token.lastUsedAt ? `最近使用 ${formatDate(token.lastUsedAt)}` : "从未使用"}</Text>
+        <Text style={styles.panelLabel}>{token.lastUsedAt ? `最近使用 ${formatDate(token.lastUsedAt, localePreference)}` : "从未使用"}</Text>
       </View>
       <View style={styles.apiTokenActions}>
         <IconButton disabled={!canCopyToken} onPress={() => token.token && onCopy(token.token, tokenCopyLabel)}>
@@ -2805,6 +2811,7 @@ const SyncQueueModal = ({
 }) => {
   const [items, setItems] = useState<MobileSyncQueueItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const localePreference = useMobileLocalePreference();
 
   const refreshItems = async () => {
     setLoading(true);
@@ -2887,7 +2894,7 @@ const SyncQueueModal = ({
                   {item.memoId}
                 </Text>
                 <Text style={styles.panelHint}>
-                  更新于 {formatDate(item.updatedAt)} · 尝试 {item.attemptCount} 次
+                  更新于 {formatDate(item.updatedAt, localePreference)} · 尝试 {item.attemptCount} 次
                 </Text>
                 {item.lastError ? <Text style={styles.errorText}>{item.lastError}</Text> : null}
                 <View style={styles.tokenActionRow}>
@@ -2925,6 +2932,8 @@ const SystemInfoModal = ({
   visible: boolean;
 }) => {
   const [copied, setCopied] = useState(false);
+  const localePreference = useMobileLocalePreference();
+  const resolvedLocale = getResolvedMobileLocale(localePreference);
   const expoConfig = Constants.expoConfig;
   const expoExtra = expoConfig?.extra as { eas?: { projectId?: string } } | undefined;
   const nativeIdentifier = Platform.select({
@@ -2946,7 +2955,7 @@ const SystemInfoModal = ({
     { label: "笔记本数量", value: String(notebookCount) },
     { label: "笔记总数", value: String(memoCount) },
     { label: "时区", value: Intl.DateTimeFormat().resolvedOptions().timeZone || "未知" },
-    { label: "语言", value: Intl.DateTimeFormat().resolvedOptions().locale || "未知" },
+    { label: "语言", value: localePreference === "system" ? `${resolvedLocale}（跟随系统）` : resolvedLocale },
   ];
 
   const copySystemInfo = async () => {
@@ -3299,6 +3308,7 @@ const ResourceCard = ({
 }) => {
   const source = resource.memoDeleted ? "已删除笔记" : resource.memoTitle || resource.memoExcerpt || resource.memoId;
   const isImage = resource.kind === "image";
+  const localePreference = useMobileLocalePreference();
 
   return (
     <Pressable onPress={isImage ? onPreview : onOpen} style={layout === "grid" ? styles.resourceGridCard : styles.resourceCard}>
@@ -3325,7 +3335,7 @@ const ResourceCard = ({
         ) : (
           <>
             <Text numberOfLines={1} style={styles.panelLabel}>
-              {formatBytes(resource.byteSize)} · {resource.mimeType?.split("/")[1] || resource.kind} · {formatDate(resource.createdAt)}
+              {formatBytes(resource.byteSize)} · {resource.mimeType?.split("/")[1] || resource.kind} · {formatDate(resource.createdAt, localePreference)}
             </Text>
             <Text numberOfLines={1} style={styles.panelLabel}>
               来源：{source}
@@ -3404,6 +3414,7 @@ const RevisionHistoryModal = ({
 }) => {
   const { client } = useSession();
   const queryClient = useQueryClient();
+  const localePreference = useMobileLocalePreference();
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
 
   const revisionsQuery = useQuery({
@@ -3506,7 +3517,7 @@ const RevisionHistoryModal = ({
                 >
                   <Text style={[styles.revisionPillTitle, selectedRevision?.id === revision.id && styles.revisionPillTitleActive]}>修订 {revision.revision}</Text>
                   <Text style={[styles.revisionPillMeta, selectedRevision?.id === revision.id && styles.revisionPillTitleActive]}>
-                    {formatDate(revision.createdAt)} · {formatRevisionActor(revision.createdBy)}
+                    {formatDate(revision.createdAt, localePreference)} · {formatRevisionActor(revision.createdBy)}
                   </Text>
                 </Pressable>
               ))}
@@ -3605,6 +3616,7 @@ const MemoDetailModal = ({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const localePreference = useMobileLocalePreference();
   const detailText = memo?.contentMarkdown || memo?.contentText || "没有正文内容";
   const searchMatches = useMemo(() => getTextSearchMatches(detailText, searchQuery), [detailText, searchQuery]);
   const searchMatchLabel = searchQuery.trim() ? `${searchMatches.length > 0 ? activeMatchIndex + 1 : 0}/${searchMatches.length}` : "0/0";
@@ -3649,7 +3661,7 @@ const MemoDetailModal = ({
           <ScrollView contentContainerStyle={styles.detailContent}>
             <Text style={styles.detailTitle}>{memo.title?.trim() || DEFAULT_MEMO_TITLE}</Text>
             <View style={styles.memoMeta}>
-              <Text style={styles.memoDate}>{formatDate(memo.updatedAt)}</Text>
+              <Text style={styles.memoDate}>{formatDate(memo.updatedAt, localePreference)}</Text>
               <Text style={styles.memoDate}>修订 {memo.revision}</Text>
             </View>
             <View style={styles.actionRow}>
@@ -4631,36 +4643,40 @@ const MemoCard = ({
   onPress: () => void;
   selected?: boolean;
   selectionMode?: boolean;
-}) => (
-  <Pressable onLongPress={onLongPress} onPress={onPress} style={[styles.memoCard, listDensity === "compact" && styles.memoCardCompact, selected && styles.memoCardSelected]}>
-    <View style={styles.memoCardTop}>
-      {selectionMode ? (
-        <View style={[styles.selectionIndicator, selected && styles.selectionIndicatorActive]}>
-          {selected ? <Check color="#ffffff" size={14} /> : null}
-        </View>
-      ) : (
-        <FileText color="#64748b" size={18} />
-      )}
-      <Text numberOfLines={1} style={styles.memoTitle}>
-        {memo.title?.trim() || DEFAULT_MEMO_TITLE}
-      </Text>
-      {memo.isPinned ? <Text style={styles.pinText}>置顶</Text> : null}
-    </View>
-    {listDensity === "preview" ? (
-      <Text numberOfLines={2} style={styles.memoExcerpt}>
-        {memo.excerpt || "没有正文预览"}
-      </Text>
-    ) : null}
-    <View style={[styles.memoMeta, listDensity === "compact" && styles.memoMetaCompact]}>
-      <Text style={styles.memoDate}>{formatDate(memo.updatedAt)}</Text>
-      {memo.tags.slice(0, 2).map((tag) => (
-        <Text key={tag} style={styles.tag}>
-          #{tag}
+}) => {
+  const localePreference = useMobileLocalePreference();
+
+  return (
+    <Pressable onLongPress={onLongPress} onPress={onPress} style={[styles.memoCard, listDensity === "compact" && styles.memoCardCompact, selected && styles.memoCardSelected]}>
+      <View style={styles.memoCardTop}>
+        {selectionMode ? (
+          <View style={[styles.selectionIndicator, selected && styles.selectionIndicatorActive]}>
+            {selected ? <Check color="#ffffff" size={14} /> : null}
+          </View>
+        ) : (
+          <FileText color="#64748b" size={18} />
+        )}
+        <Text numberOfLines={1} style={styles.memoTitle}>
+          {memo.title?.trim() || DEFAULT_MEMO_TITLE}
         </Text>
-      ))}
-    </View>
-  </Pressable>
-);
+        {memo.isPinned ? <Text style={styles.pinText}>置顶</Text> : null}
+      </View>
+      {listDensity === "preview" ? (
+        <Text numberOfLines={2} style={styles.memoExcerpt}>
+          {memo.excerpt || "没有正文预览"}
+        </Text>
+      ) : null}
+      <View style={[styles.memoMeta, listDensity === "compact" && styles.memoMetaCompact]}>
+        <Text style={styles.memoDate}>{formatDate(memo.updatedAt, localePreference)}</Text>
+        {memo.tags.slice(0, 2).map((tag) => (
+          <Text key={tag} style={styles.tag}>
+            #{tag}
+          </Text>
+        ))}
+      </View>
+    </Pressable>
+  );
+};
 
 const PanelRow = ({ label, value }: { label: string; value: string }) => (
   <View style={styles.panelRow}>
@@ -5084,8 +5100,11 @@ const isNotebookDescendant = (notebooks: Notebook[], candidateNotebookId: string
   return false;
 };
 
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat("zh-CN", {
+const getResolvedMobileLocale = (localePreference: MobileLocaleMode) =>
+  localePreference === "system" ? Intl.DateTimeFormat().resolvedOptions().locale || "zh-CN" : localePreference;
+
+const formatDate = (value: string, localePreference: MobileLocaleMode = "system") =>
+  new Intl.DateTimeFormat(getResolvedMobileLocale(localePreference), {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
