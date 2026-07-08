@@ -14,7 +14,7 @@ import {
 import { getNotebookMoveOptions } from "@/lib/app-helpers";
 import { compressImageForUpload } from "@/lib/image-compression";
 import { localDb, type LocalDraft } from "@/lib/local-db";
-import { markStandaloneMobileEditorReturning } from "@/lib/mobile-editor";
+import { getStandaloneMobileEditorReturnPath, markStandaloneMobileEditorReturning } from "@/lib/mobile-editor";
 import {
   DEFAULT_MOBILE_EDITOR_MEMO_TITLE,
   MOBILE_EDITOR_AUTO_SAVE_DELAY_MS,
@@ -27,7 +27,6 @@ import {
   normalizeMobileEditorDoc,
   parseMobileEditorTags,
   requestMobileEditorJson,
-  safeMobileEditorReturnPath,
   uploadMobileEditorResource,
   type MobileEditorDraft,
   type MobileEditorMemoResponse,
@@ -41,18 +40,15 @@ type ListNotebooksResponse = {
 
 type MobileStandaloneTiptapEditorProps = {
   memoId?: string | null;
-  returnTo?: string;
   onLeave?: () => void;
 };
 
 export const MobileStandaloneTiptapEditor = ({
   memoId: memoIdProp,
-  returnTo: returnToProp,
   onLeave,
 }: MobileStandaloneTiptapEditorProps = {}) => {
   const params = useMemo(() => getMobileEditorParams(), []);
   const memoId = memoIdProp ?? params.get("memoId");
-  const returnTo = safeMobileEditorReturnPath(returnToProp ?? params.get("returnTo"));
   const draftKey = getMobileEditorDraftKey(memoId);
   const [memo, setMemo] = useState<MemoDetail | null>(null);
   const memoRef = useRef<MemoDetail | null>(null);
@@ -440,8 +436,8 @@ export const MobileStandaloneTiptapEditor = ({
       return;
     }
 
-    window.location.replace(returnTo);
-  }, [memoId, onLeave, returnTo]);
+    window.location.replace(memoId ? getStandaloneMobileEditorReturnPath(memoId) : "/");
+  }, [memoId, onLeave]);
 
   const leavePage = useCallback(async () => {
     if (leavingRef.current) {
