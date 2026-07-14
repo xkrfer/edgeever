@@ -27,16 +27,18 @@ The public demo resets daily and restores sample notes. Do not store private con
 
 Copy this prompt into your AI coding assistant, such as Claude Code, Codex, Antigravity, Cursor, or Trae:
 
-**Recommendation:** Before deployment, configure GitHub and Cloudflare MCP servers, plugins, or other supported integrations for your AI Agent. This allows it to fork the repository, create the required Cloudflare resources, and deploy the application.
+**Recommendation:** Before deployment, configure GitHub and Cloudflare MCP servers, plugins, or other supported integrations for your AI Agent. This allows it to fork the repository, create the required Cloudflare resources, deploy the application, and connect the instance to Cloudflare Workers Builds.
 
 ```text
 Please follow these steps:
 1. Fork the EdgeEver upstream repository: https://github.com/tianma-if/edgeever
 2. Use the forked repository to install and deploy EdgeEver to Cloudflare.
-3. Configure a mechanism for the fork to sync updates from the upstream repository, so it can receive the latest product features periodically or on demand.
+3. Connect the deployed Worker to the fork's `main` branch through Cloudflare Workers Builds, so GitHub Sync fork automatically builds, migrates, and deploys future updates.
 ```
 
 Agents should follow [AI Agent Cloudflare Deployment](docs/agent-deploy-cloudflare.md).
+
+After the first deployment, see [Cloudflare Workers Builds](docs/cloudflare-workers-builds.md) for automatic updates. The same deployment flow is used by official instances and forks.
 
 > Common pitfall: Cloudflare R2, D1, and Workers may still require a Visa card during activation or usage, even when you stay within the free quotas.
 
