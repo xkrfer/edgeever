@@ -10,6 +10,26 @@
 
 严禁创建新的 Git 分支；所有修改、提交和推送都必须直接在 `main` 分支上完成。
 
+## GitHub Issue 与 Release 约束
+
+正式版本统一遵循 Semantic Versioning。Git 标签与 GitHub Release 标题必须使用完全相同的 `vX.Y.Z` 格式，例如标签和标题都写作 `v0.1.15`；禁止混用 `EdgeEver vX.Y.Z`、中文标题或其他前后缀。常规修复和向后兼容的小功能递增 patch，向后兼容的重要功能递增 minor，破坏性变更递增 major。发布前必须先检查最新 Release 和远端标签，严禁覆盖、移动或重复使用已经发布的版本号。
+
+Release 标签必须精确指向 `main` 上经过验证的发布提交。除非用户明确要求，否则应发布为非 Draft、非 Prerelease 的正式版本。发布正文统一使用以下结构：
+
+```md
+## 主要更新
+
+- 面向用户说明本次变化及影响。
+
+关联 Issue：#<issue-number>
+
+## 验证
+
+- 列出实际完成的测试、类型检查和构建结果。
+```
+
+每个功能或修复 Release 都应关联对应的 GitHub Issue。如果发布前尚无 Issue，应先创建并记录问题、目标与实现结果；Release 正文引用该 Issue，发布成功后在 Issue 中回链 Release，并按实际完成状态关闭。验证失败时不得发布正式 Release。
+
 ## Cloudflare 自动部署约束
 
 当用户要求“根据 GitHub 项目链接把本项目安装部署到 Cloudflare”时，应优先按 `docs/agent-deploy-cloudflare.md` 执行。
